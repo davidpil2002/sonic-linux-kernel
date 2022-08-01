@@ -26,6 +26,8 @@
 # Configuration file to change
 ARCH=amd64
 PLATFORM=
+# TODO: remove debug prints
+echo "DEBUG >>>>>>>>>>>>"
 if [ $# -ge 1 ]; then
     ARCH=$1
 fi
@@ -62,10 +64,12 @@ ret=0
 exclusion_file="../patch/kconfig-exclusions"
 inclusion_file="../patch/kconfig-inclusions"
 force_inclusion_file="../patch/kconfig-force-inclusions"
+echo "DEBUG >>>>>>>>>>>>2"
 if [ -e ${exclusion_file} -o -e ${inclusion_file} -o -e ${force_inclusion_file} ]; then
 
     # Process any exclusions in the kernel
     if [ -f ${exclusion_file} ]; then
+        echo "DEBUG >>>>>>>>>>>>3"
         exclusion_opts=$(get_section_opts ${exclusion_file} "common" ${ARCH} ${PLATFORM})
         while read -r opt; do
             if [ ! -z "$opt" ] && [[ ! "$opt" =~ ^#.* ]]; then
@@ -76,16 +80,39 @@ if [ -e ${exclusion_file} -o -e ${inclusion_file} -o -e ${force_inclusion_file} 
 
     # Process any inclusions in the kernel
     if [ -f ${inclusion_file} ]; then
+        echo "DEBUG >>>>>>>>>>>>4"
         inclusion_opts=$(get_section_opts ${inclusion_file} "common" ${ARCH} ${PLATFORM})
-        while read -r opt; do
-            if [ ! -z "$opt" ] && [[ ! "$opt" =~ ^#.* ]]; then
-                echo $opt >> ${CONFIG_FILE}
-            fi
-        done <<< ${inclusion_opts};
+        for j in ${inclusion_opts[@]}
+        do
+        echo $j
+        done >> ${CONFIG_FILE_LOC}/.config_inclusion_opts
+        # inclusion_opts=CONFIG_SYSTEM_TRUSTED_KEYS="/auto/sw_system_project/sx_mlnx_os/mlnx_Secure_Boot/development/nv_onyx_key_certificate.pem"
+        # echo ${inclusion_opts} >> ${CONFIG_FILE_LOC}/.config_inclusion_opts
+        echo "ls -la ${CONFIG_FILE_LOC}"
+        ls -la ${CONFIG_FILE_LOC}
+        echo "[DEBUG]cat ${CONFIG_FILE_LOC}/.config_inclusion_opts"
+        cat ${CONFIG_FILE_LOC}/.config_inclusion_opts
+        echo "[DEBUG]before merging ...................................."
+        echo "========================================================="
+        echo "========================================================="
+        echo "cat $CONFIG_FILE"
+        cat $CONFIG_FILE
+        # DEBUG TODO
+        # cp $CONFIG_FILE ${CONFIG_FILE_LOC}/.config_before_merge
+        scripts/kconfig/merge_config.sh -r -m -O ${CONFIG_FILE_LOC} $CONFIG_FILE ${CONFIG_FILE_LOC}/.config_inclusion_opts
+        echo "[DEBUG]after merging ...................................."
+        echo "========================================================="
+        echo "========================================================="
+        echo "cat $CONFIG_FILE"
+        cat $CONFIG_FILE
+        echo "========================================================="
+
     fi
 
+
     # Update the .config file to be sure it's consistent
-    make -C ${CONFIG_FILE_LOC} olddefconfig
+    # TODO: understand this check
+    # make -C ${CONFIG_FILE_LOC} olddefconfig
 
     # Verify that the kernel options we want to remove are not in the updated configuration
     if [ -f ${exclusion_file} ]; then
@@ -137,5 +164,9 @@ if [ -e ${exclusion_file} -o -e ${inclusion_file} -o -e ${force_inclusion_file} 
 
     echo
 fi
-
+echo "========================================================="
+echo "===============final manage-config=========================================="
+echo "cat $CONFIG_FILE"
+cat $CONFIG_FILE
+echo "========================================================="
 exit $ret
